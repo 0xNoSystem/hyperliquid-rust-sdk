@@ -105,7 +105,7 @@ pub struct InfoClient {
 
 impl InfoClient {
     pub async fn new(client: Option<Client>, base_url: Option<BaseUrl>) -> Result<InfoClient> {
-        Self::new_internal(client, base_url, true).await
+        Self::new_internal(client, base_url, false).await
     }
 
     pub async fn with_reconnect(

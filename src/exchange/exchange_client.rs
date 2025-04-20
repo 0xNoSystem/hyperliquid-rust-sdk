@@ -39,6 +39,7 @@ pub struct ExchangeClient {
     pub meta: Meta,
     pub vault_address: Option<H160>,
     pub coin_to_asset: HashMap<String, u32>,
+    pub url: BaseUrl,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -122,6 +123,7 @@ impl ExchangeClient {
                 base_url: base_url.get_url(),
             },
             coin_to_asset,
+            url: base_url, //custom
         })
     }
 

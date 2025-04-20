@@ -37,7 +37,6 @@ pub struct ExchangeClient {
     pub meta: Meta,
     pub vault_address: Option<Address>,
     pub coin_to_asset: HashMap<String, u32>,
-    pub url: BaseUrl,
 }
 
 fn serialize_sig<S>(sig: &Signature, s: S) -> std::result::Result<S::Ok, S::Error>
@@ -137,7 +136,6 @@ impl ExchangeClient {
                 base_url: base_url.get_url(),
             },
             coin_to_asset,
-            url: base_url, //custom
         })
     }
 

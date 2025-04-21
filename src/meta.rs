@@ -87,12 +87,12 @@ pub struct AssetContext {
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AssetMeta {
-    pub name: String,
-    pub sz_decimals: u32,
-    pub max_leverage: usize,
-    #[serde(default)]
-    pub only_isolated: Option<bool>,
-}
+        pub name: String,
+        pub sz_decimals: u32,
+        pub max_leverage: usize,
+        #[serde(default)]
+        pub only_isolated: Option<bool>,
+    }
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]

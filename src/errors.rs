@@ -61,4 +61,6 @@ pub enum Error {
     SignatureFailure(String),
     #[error("Vault address not found")]
     VaultAddressNotFound,
+    #[error("Failed to start market")]
+    MarketError,
 }

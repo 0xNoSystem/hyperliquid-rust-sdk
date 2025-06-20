@@ -63,4 +63,6 @@ pub enum Error {
     VaultAddressNotFound,
     #[error("Failed to start market")]
     MarketError,
+    #[error("Insufficient margin, please choose a valid margin")]
+    InsufficientFreeMargin,
 }

@@ -64,7 +64,7 @@ pub enum Error {
     #[error("Failed to start market")]
     MarketError,
     #[error("Insufficient margin, you have {0}$ of free margin")]
-    InsufficientFreeMargin(f32),
+    InsufficientFreeMargin(f64),
     #[error("Invalid margin amount, market margin must be > 0")]
     InvalidMarginAmount,
 }

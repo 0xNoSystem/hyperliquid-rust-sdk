@@ -67,4 +67,6 @@ pub enum Error {
     InsufficientFreeMargin(f64),
     #[error("Invalid margin amount, market margin must be > 0")]
     InvalidMarginAmount,
+    #[error("ERROR MESSAGE: {0}")]
+    Custom(String),
 }

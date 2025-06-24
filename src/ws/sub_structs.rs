@@ -36,6 +36,15 @@ pub struct AllMidsData {
     pub mids: HashMap<String, String>,
 }
 
+
+#[derive(Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct FillLiquidation {
+    pub liquidated_user: Option<String>,
+    pub mark_px: String,
+    pub method: String,
+}
+
 #[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct FillLiquidation {
@@ -65,6 +74,7 @@ pub struct TradeInfo {
     pub liquidation: Option<FillLiquidation>,
     pub builder_fee: Option<String>,
 }
+
 
 #[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]

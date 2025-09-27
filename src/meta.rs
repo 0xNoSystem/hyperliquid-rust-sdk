@@ -63,7 +63,7 @@ pub struct SpotAssetContext {
     pub coin: String,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AssetMeta {
     pub name: String,

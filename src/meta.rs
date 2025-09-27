@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use ethers::abi::ethereum_types::H128;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Meta {

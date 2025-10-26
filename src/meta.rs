@@ -1,12 +1,7 @@
 use std::collections::HashMap;
-
-<<<<<<< HEAD
 use alloy::primitives::B128;
-use serde::Deserialize;
-=======
 use ethers::abi::ethereum_types::H128;
 use serde::{Deserialize, Serialize};
->>>>>>> 76053b0 (prepare for rebase)
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Meta {

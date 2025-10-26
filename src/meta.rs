@@ -1,7 +1,12 @@
 use std::collections::HashMap;
 
+<<<<<<< HEAD
 use alloy::primitives::B128;
 use serde::Deserialize;
+=======
+use ethers::abi::ethereum_types::H128;
+use serde::{Deserialize, Serialize};
+>>>>>>> 76053b0 (prepare for rebase)
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Meta {
@@ -70,7 +75,7 @@ pub struct SpotAssetContext {
     pub coin: String,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize,Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AssetContext {
     pub day_ntl_vlm: String,

@@ -89,7 +89,7 @@ pub struct AssetContext {
 pub struct AssetMeta {
         pub name: String,
         pub sz_decimals: u32,
-        pub max_leverage: u32,
+        pub max_leverage: usize,
         #[serde(default)]
         pub only_isolated: Option<bool>,
     }

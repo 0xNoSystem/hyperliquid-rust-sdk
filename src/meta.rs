@@ -84,12 +84,12 @@ pub struct AssetContext {
     pub prev_day_px: String,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AssetMeta {
         pub name: String,
         pub sz_decimals: u32,
-        pub max_leverage: usize,
+        pub max_leverage: u32,
         #[serde(default)]
         pub only_isolated: Option<bool>,
     }

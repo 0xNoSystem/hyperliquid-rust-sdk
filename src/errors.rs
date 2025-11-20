@@ -67,6 +67,8 @@ pub enum Error {
     InsufficientFreeMargin(f64),
     #[error("Invalid margin amount, market margin must be > 0")]
     InvalidMarginAmount,
+    #[error("Failed to run Backtest: {0}")]
+    BacktestError(String),
     #[error("ERROR MESSAGE: {0}")]
     Custom(String),
 }

@@ -9,7 +9,7 @@ use crate::{
     info::{
         ActiveAssetDataResponse, CandlesSnapshotResponse, FundingHistoryResponse,
         L2SnapshotResponse, OpenOrdersResponse, OrderInfo, RecentTradesResponse, UserFillsResponse,
-        UserStateResponse,
+        UserStateResponse, FrontendOpenOrdersResponse,
     },
     meta::{AssetContext, Meta, SpotMeta, SpotMetaAndAssetCtxs},
     prelude::*,
@@ -48,6 +48,9 @@ pub enum InfoRequest {
         user: Address,
     },
     OpenOrders {
+        user: Address,
+    },
+    FrontendOpenOrders{
         user: Address,
     },
     OrderStatus {
@@ -184,6 +187,11 @@ impl InfoClient {
 
     pub async fn open_orders(&self, address: Address) -> Result<Vec<OpenOrdersResponse>> {
         let input = InfoRequest::OpenOrders { user: address };
+        self.send_info_request(input).await
+    }
+
+    pub async fn frontend_open_orders(&self, address: Address) -> Result<Vec<FrontendOpenOrdersResponse>>{
+        let input = InfoRequest::FrontendOpenOrders { user: address };
         self.send_info_request(input).await
     }
 

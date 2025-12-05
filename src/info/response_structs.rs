@@ -32,7 +32,7 @@ pub struct UserFeesResponse {
     pub user_cross_rate: String,
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct OpenOrdersResponse {
     pub coin: String,
@@ -43,6 +43,27 @@ pub struct OpenOrdersResponse {
     pub timestamp: u64,
     pub cloid: Option<String>,
 }
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct FrontendOpenOrdersResponse {
+    pub coin: String,
+    pub is_position_tpsl: bool,
+    pub is_trigger: bool,
+    pub limit_px: String,
+    pub oid: u64,
+    pub order_type: String,
+    pub orig_sz: String,
+    pub reduce_only: bool,
+    pub side: String,
+    pub sz: String,
+    pub timestamp: u64,
+    pub trigger_condition: String,
+    pub trigger_px: String,
+}
+
+
+
 
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]

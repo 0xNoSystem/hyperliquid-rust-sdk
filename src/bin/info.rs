@@ -9,6 +9,7 @@ async fn main() {
     env_logger::init();
     let info_client = InfoClient::new(None, Some(BaseUrl::Testnet)).await.unwrap();
     open_orders_example(&info_client).await;
+    frontend_open_orders_example(&info_client).await;
     user_state_example(&info_client).await;
     user_states_example(&info_client).await;
     recent_trades(&info_client).await;
@@ -40,6 +41,15 @@ async fn open_orders_example(info_client: &InfoClient) {
     info!(
         "Open order data for {user}: {:?}",
         info_client.open_orders(user).await.unwrap()
+    );
+}
+
+async fn frontend_open_orders_example(info_client: &InfoClient) {
+    let user = address();
+
+    info!(
+        "Open order data for {user}: {:?}",
+        info_client.frontend_open_orders(user).await.unwrap()
     );
 }
 

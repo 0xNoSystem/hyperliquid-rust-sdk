@@ -70,7 +70,7 @@ pub enum Error {
     #[error("Failed to run Backtest: {0}")]
     BacktestError(String),
     #[error("Failed to execute trade: {0}")]
-    ExecutionFailure,
+    ExecutionFailure(String),
     #[error("ERROR MESSAGE: {0}")]
     Custom(String),
 }

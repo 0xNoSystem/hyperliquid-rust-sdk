@@ -12,7 +12,7 @@ async fn main() {
     env_logger::init();
     // Key was randomly generated for testing and shouldn't be used with any real funds
     let wallet: PrivateKeySigner =
-        "e908f86dbb4d55ac876378565aafeabc187f6690f046459397b17d9b9a19688e"
+        "0x6c979b49097530d9350552dc01330619f3d86bdc848c063fc48fd61495b3b72f"
             .parse()
             .unwrap();
 
@@ -25,7 +25,7 @@ async fn main() {
         is_buy: true,
         reduce_only: false,
         limit_px: 1800.0,
-        sz: 0.01,
+        sz: 0.1,
         cloid: None,
         order_type: ClientOrder::Limit(ClientLimit {
             tif: "Gtc".to_string(),
@@ -39,7 +39,7 @@ async fn main() {
         ExchangeResponseStatus::Ok(exchange_response) => exchange_response,
         ExchangeResponseStatus::Err(e) => panic!("error with exchange response: {e}"),
     };
-    let status = response.data.unwrap().statuses[0].clone();
+    let status = dbg!(response.data.unwrap().statuses[0].clone());
     let oid = match status {
         ExchangeDataStatus::Filled(order) => order.oid,
         ExchangeDataStatus::Resting(order) => order.oid,

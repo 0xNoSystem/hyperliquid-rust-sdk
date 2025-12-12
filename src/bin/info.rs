@@ -2,12 +2,12 @@ use alloy::primitives::Address;
 use hyperliquid_rust_sdk::{BaseUrl, InfoClient};
 use log::info;
 
-const ADDRESS: &str = "0xc64cc00b46101bd40aa1c3121195e85c0b0918d8";
+const ADDRESS: &str = "0x8b56d7FBC8ad2a90E1C1366CA428efb4b5Bed18F";
 
 #[tokio::main]
 async fn main() {
     env_logger::init();
-    let info_client = InfoClient::new(None, Some(BaseUrl::Testnet)).await.unwrap();
+    let info_client = InfoClient::new(None, Some(BaseUrl::Mainnet)).await.unwrap();
     open_orders_example(&info_client).await;
     frontend_open_orders_example(&info_client).await;
     user_state_example(&info_client).await;
@@ -56,7 +56,7 @@ async fn frontend_open_orders_example(info_client: &InfoClient) {
 async fn user_state_example(info_client: &InfoClient) {
     let user = address();
 
-    info!(
+    println!(
         "User state data for {user}: {:?}",
         info_client.user_state(user).await.unwrap()
     );
@@ -197,9 +197,9 @@ async fn query_referral_state_example(info_client: &InfoClient) {
 
 async fn active_asset_data_example(info_client: &InfoClient) {
     let user = address();
-    let coin = "ETH";
+    let coin = "XPL";
 
-    info!(
+    println!(
         "Active asset data for {user} and coin {coin}: {:?}",
         info_client
             .active_asset_data(user, coin.to_string())

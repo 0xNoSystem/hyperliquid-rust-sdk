@@ -69,6 +69,8 @@ pub enum Error {
     InvalidMarginAmount,
     #[error("Failed to run Backtest: {0}")]
     BacktestError(String),
+    #[error("Failed to execute trade: {0}")]
+    ExecutionFailure,
     #[error("ERROR MESSAGE: {0}")]
     Custom(String),
 }

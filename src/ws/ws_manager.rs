@@ -124,14 +124,28 @@ impl WsManager {
             let stop_flag = Arc::clone(&stop_flag);
             let reader_fut = async move {
                 while !stop_flag.load(Ordering::Relaxed) {
-                    if let Some(data) = reader.next().await {
-                        if let Err(err) =
-                            WsManager::parse_and_send_data(data, &subscriptions_copy).await
-                        {
-                            error!("Error processing data received by WsManager reader: {err}");
+                    let mut should_reconnect = false;
+                    match reader.next().await {
+                        Some(Ok(data)) => {
+                            if let Err(err) =
+                                WsManager::parse_and_send_data(Ok(data), &subscriptions_copy).await
+                            {
+                                error!(
+                                    "Error processing data received by WsManager reader: {err}"
+                                );
+                                should_reconnect = true;
+                            }
                         }
-                    } else {
-                        warn!("WsManager disconnected");
+                        Some(Err(err)) => {
+                            error!("WsManager reader error: {err}");
+                            should_reconnect = true;
+                        }
+                        None => {
+                            warn!("WsManager disconnected");
+                            should_reconnect = true;
+                        }
+                    }
+                    if should_reconnect {
                         if let Err(err) = WsManager::send_to_all_subscriptions(
                             &subscriptions_copy,
                             Message::NoData,

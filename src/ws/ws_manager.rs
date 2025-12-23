@@ -110,9 +110,9 @@ pub(crate) struct Ping {
 }
 
 impl WsManager {
-    const MAINNET_PING_AFTER_SECS: u64 = 120;
+    const MAINNET_PING_AFTER_SECS: u64 = 60;
     const MAINNET_PONG_GRACE_SECS: u64 = 30;
-    const TESTNET_PING_AFTER_SECS: u64 = 600;
+    const TESTNET_PING_AFTER_SECS: u64 = 300;
     const TESTNET_PONG_GRACE_SECS: u64 = 60;
     const LIVENESS_CHECK_INTERVAL_SECS: u64 = 5;
 

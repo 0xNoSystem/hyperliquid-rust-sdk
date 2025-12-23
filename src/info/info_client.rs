@@ -104,6 +104,7 @@ pub struct InfoClient {
     pub http_client: HttpClient,
     pub(crate) ws_manager: Option<WsManager>,
     reconnect: bool,
+    base_url_kind: BaseUrl,
 }
 
 impl InfoClient {
@@ -124,12 +125,14 @@ impl InfoClient {
         reconnect: bool,
     ) -> Result<InfoClient> {
         let client = client.unwrap_or_default();
-        let base_url = base_url.unwrap_or(BaseUrl::Mainnet).get_url();
+        let base_url_kind = base_url.unwrap_or(BaseUrl::Mainnet);
+        let base_url = base_url_kind.get_url();
 
         Ok(InfoClient {
             http_client: HttpClient { client, base_url },
             ws_manager: None,
             reconnect,
+            base_url_kind,
         })
     }
 
@@ -142,6 +145,7 @@ impl InfoClient {
             let ws_manager = WsManager::new(
                 format!("ws{}/ws", &self.http_client.base_url[4..]),
                 self.reconnect,
+                self.base_url_kind,
             )
             .await?;
             self.ws_manager = Some(ws_manager);
@@ -162,6 +166,7 @@ impl InfoClient {
             let ws_manager = WsManager::new(
                 format!("ws{}/ws", &self.http_client.base_url[4..]),
                 self.reconnect,
+                self.base_url_kind,
             )
             .await?;
             self.ws_manager = Some(ws_manager);

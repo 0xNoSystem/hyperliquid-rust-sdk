@@ -31,8 +31,8 @@ use crate::{
         ActiveAssetData, ActiveSpotAssetCtx, AllMids, Bbo, Candle, L2Book, OrderUpdates, Trades,
         User,
     },
-    ActiveAssetCtx, Error, Notification, UserFills, UserFundings, UserNonFundingLedgerUpdates,
-    WebData2,
+    ActiveAssetCtx, BaseUrl, Error, Notification, UserFills, UserFundings,
+    UserNonFundingLedgerUpdates, WebData2,
 };
 
 #[derive(Debug)]
@@ -108,8 +108,10 @@ pub(crate) struct Ping {
 
 impl WsManager {
     const SEND_PING_INTERVAL: u64 = 50;
+    const MAINNET_READ_TIMEOUT_SECS: u64 = 120;
+    const TESTNET_READ_TIMEOUT_SECS: u64 = 600;
 
-    pub(crate) async fn new(url: String, reconnect: bool) -> Result<WsManager> {
+    pub(crate) async fn new(url: String, reconnect: bool, base_url: BaseUrl) -> Result<WsManager> {
         let stop_flag = Arc::new(AtomicBool::new(false));
 
         let (writer, mut reader) = Self::connect(&url).await?.split();
@@ -119,41 +121,59 @@ impl WsManager {
         let subscriptions = Arc::new(Mutex::new(subscriptions_map));
         let subscriptions_copy = Arc::clone(&subscriptions);
 
+        let read_timeout = Self::read_timeout_for_base_url(base_url);
         {
             let writer = writer.clone();
             let stop_flag = Arc::clone(&stop_flag);
             let reader_fut = async move {
                 while !stop_flag.load(Ordering::Relaxed) {
                     let mut should_reconnect = false;
-                    match reader.next().await {
-                        Some(Ok(data)) => match &data {
-                            protocol::Message::Text(_) => {
-                                if let Err(err) =
-                                    WsManager::parse_and_send_data(Ok(data), &subscriptions_copy)
-                                        .await
-                                {
-                                    error!(
-                                        "Error processing data received by WsManager reader: {err}"
-                                    );
+                    let next = if let Some(timeout) = read_timeout {
+                        match time::timeout(timeout, reader.next()).await {
+                            Ok(next) => next,
+                            Err(_) => {
+                                warn!("WsManager read timeout");
+                                should_reconnect = true;
+                                None
+                            }
+                        }
+                    } else {
+                        reader.next().await
+                    };
+
+                    if !should_reconnect {
+                        match next {
+                            Some(Ok(data)) => match &data {
+                                protocol::Message::Text(_) => {
+                                    if let Err(err) = WsManager::parse_and_send_data(
+                                        Ok(data),
+                                        &subscriptions_copy,
+                                    )
+                                    .await
+                                    {
+                                        error!(
+                                            "Error processing data received by WsManager reader: {err}"
+                                        );
+                                        should_reconnect = true;
+                                    }
+                                }
+                                protocol::Message::Close(_) => {
+                                    warn!("WsManager received close frame");
                                     should_reconnect = true;
                                 }
-                            }
-                            protocol::Message::Close(_) => {
-                                warn!("WsManager received close frame");
+                                protocol::Message::Binary(_)
+                                | protocol::Message::Ping(_)
+                                | protocol::Message::Pong(_) => {}
+                                _ => {}
+                            },
+                            Some(Err(err)) => {
+                                error!("WsManager reader error: {err}");
                                 should_reconnect = true;
                             }
-                            protocol::Message::Binary(_)
-                            | protocol::Message::Ping(_)
-                            | protocol::Message::Pong(_) => {}
-                            _ => {}
-                        },
-                        Some(Err(err)) => {
-                            error!("WsManager reader error: {err}");
-                            should_reconnect = true;
-                        }
-                        None => {
-                            warn!("WsManager disconnected");
-                            should_reconnect = true;
+                            None => {
+                                warn!("WsManager disconnected");
+                                should_reconnect = true;
+                            }
                         }
                     }
                     if should_reconnect {
@@ -249,6 +269,14 @@ impl WsManager {
             .await
             .map_err(|e| Error::Websocket(e.to_string()))?
             .0)
+    }
+
+    fn read_timeout_for_base_url(base_url: BaseUrl) -> Option<Duration> {
+        match base_url {
+            BaseUrl::Testnet => Some(Duration::from_secs(Self::TESTNET_READ_TIMEOUT_SECS)),
+            BaseUrl::Mainnet => Some(Duration::from_secs(Self::MAINNET_READ_TIMEOUT_SECS)),
+            BaseUrl::Localhost => None,
+        }
     }
 
     fn get_identifier(message: &Message) -> Result<String> {

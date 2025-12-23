@@ -70,7 +70,7 @@ pub fn bps_diff(x: f64, y: f64) -> u16 {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum BaseUrl {
     Localhost,
     Testnet,

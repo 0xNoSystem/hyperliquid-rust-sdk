@@ -7,9 +7,9 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     info::{
-        ActiveAssetDataResponse, CandlesSnapshotResponse, FundingHistoryResponse,
-        L2SnapshotResponse, OpenOrdersResponse, OrderInfo, RecentTradesResponse, UserFillsResponse,
-        UserStateResponse, FrontendOpenOrdersResponse,
+        ActiveAssetDataResponse, CandlesSnapshotResponse, FrontendOpenOrdersResponse,
+        FundingHistoryResponse, L2SnapshotResponse, OpenOrdersResponse, OrderInfo,
+        RecentTradesResponse, UserFillsResponse, UserStateResponse,
     },
     meta::{AssetContext, Meta, SpotMeta, SpotMetaAndAssetCtxs},
     prelude::*,
@@ -50,7 +50,7 @@ pub enum InfoRequest {
     OpenOrders {
         user: Address,
     },
-    FrontendOpenOrders{
+    FrontendOpenOrders {
         user: Address,
     },
     OrderStatus {
@@ -190,7 +190,10 @@ impl InfoClient {
         self.send_info_request(input).await
     }
 
-    pub async fn frontend_open_orders(&self, address: Address) -> Result<Vec<FrontendOpenOrdersResponse>>{
+    pub async fn frontend_open_orders(
+        &self,
+        address: Address,
+    ) -> Result<Vec<FrontendOpenOrdersResponse>> {
         let input = InfoRequest::FrontendOpenOrders { user: address };
         self.send_info_request(input).await
     }

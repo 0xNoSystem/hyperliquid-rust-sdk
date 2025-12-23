@@ -126,16 +126,27 @@ impl WsManager {
                 while !stop_flag.load(Ordering::Relaxed) {
                     let mut should_reconnect = false;
                     match reader.next().await {
-                        Some(Ok(data)) => {
-                            if let Err(err) =
-                                WsManager::parse_and_send_data(Ok(data), &subscriptions_copy).await
-                            {
-                                error!(
-                                    "Error processing data received by WsManager reader: {err}"
-                                );
+                        Some(Ok(data)) => match &data {
+                            protocol::Message::Text(_) => {
+                                if let Err(err) =
+                                    WsManager::parse_and_send_data(Ok(data), &subscriptions_copy)
+                                        .await
+                                {
+                                    error!(
+                                        "Error processing data received by WsManager reader: {err}"
+                                    );
+                                    should_reconnect = true;
+                                }
+                            }
+                            protocol::Message::Close(_) => {
+                                warn!("WsManager received close frame");
                                 should_reconnect = true;
                             }
-                        }
+                            protocol::Message::Binary(_)
+                            | protocol::Message::Ping(_)
+                            | protocol::Message::Pong(_) => {}
+                            _ => {}
+                        },
                         Some(Err(err)) => {
                             error!("WsManager reader error: {err}");
                             should_reconnect = true;

@@ -66,7 +66,6 @@ pub struct TradeInfo {
     pub builder_fee: Option<String>,
 }
 
-
 #[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct UserFillsData {
@@ -74,7 +73,6 @@ pub struct UserFillsData {
     pub user: Address,
     pub fills: Vec<TradeInfo>,
 }
-
 
 #[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]

@@ -62,9 +62,6 @@ pub struct FrontendOpenOrdersResponse {
     pub trigger_px: String,
 }
 
-
-
-
 #[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct UserFillsResponse {

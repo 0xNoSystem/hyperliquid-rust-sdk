@@ -3,10 +3,10 @@ use std::{
     collections::HashMap,
     ops::DerefMut,
     sync::{
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
         Arc,
     },
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use alloy::primitives::Address;
@@ -19,11 +19,7 @@ use tokio::{
     sync::{mpsc::UnboundedSender, Mutex},
     time,
 };
-use tokio_tungstenite::{
-    connect_async,
-    tungstenite::{self, protocol},
-    MaybeTlsStream, WebSocketStream,
-};
+use tokio_tungstenite::{connect_async, tungstenite::protocol, MaybeTlsStream, WebSocketStream};
 
 use crate::{
     prelude::*,
@@ -40,6 +36,13 @@ struct SubscriptionData {
     sending_channel: UnboundedSender<Message>,
     subscription_id: u32,
     id: String,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct LivenessConfig {
+    ping_after: Duration,
+    pong_grace: Duration,
+    check_interval: Duration,
 }
 #[derive(Debug)]
 pub(crate) struct WsManager {
@@ -107,12 +110,20 @@ pub(crate) struct Ping {
 }
 
 impl WsManager {
-    const SEND_PING_INTERVAL: u64 = 50;
-    const MAINNET_READ_TIMEOUT_SECS: u64 = 120;
-    const TESTNET_READ_TIMEOUT_SECS: u64 = 600;
+    const MAINNET_PING_AFTER_SECS: u64 = 120;
+    const MAINNET_PONG_GRACE_SECS: u64 = 30;
+    const TESTNET_PING_AFTER_SECS: u64 = 600;
+    const TESTNET_PONG_GRACE_SECS: u64 = 60;
+    const LIVENESS_CHECK_INTERVAL_SECS: u64 = 5;
 
     pub(crate) async fn new(url: String, reconnect: bool, base_url: BaseUrl) -> Result<WsManager> {
         let stop_flag = Arc::new(AtomicBool::new(false));
+        let base_instant = Instant::now();
+        let last_rx = Arc::new(AtomicU64::new(0));
+        let last_pong = Arc::new(AtomicU64::new(0));
+        let last_ping = Arc::new(AtomicU64::new(0));
+        let awaiting_pong = Arc::new(AtomicBool::new(false));
+        let force_reconnect = Arc::new(AtomicBool::new(false));
 
         let (writer, mut reader) = Self::connect(&url).await?.split();
         let writer = Arc::new(Mutex::new(writer));
@@ -121,60 +132,97 @@ impl WsManager {
         let subscriptions = Arc::new(Mutex::new(subscriptions_map));
         let subscriptions_copy = Arc::clone(&subscriptions);
 
-        let read_timeout = Self::read_timeout_for_base_url(base_url);
+        let liveness = Self::liveness_config(base_url);
         {
             let writer = writer.clone();
             let stop_flag = Arc::clone(&stop_flag);
+            let last_rx = Arc::clone(&last_rx);
+            let last_pong = Arc::clone(&last_pong);
+            let last_ping = Arc::clone(&last_ping);
+            let awaiting_pong = Arc::clone(&awaiting_pong);
+            let force_reconnect = Arc::clone(&force_reconnect);
             let reader_fut = async move {
                 while !stop_flag.load(Ordering::Relaxed) {
                     let mut should_reconnect = false;
-                    let next = if let Some(timeout) = read_timeout {
-                        match time::timeout(timeout, reader.next()).await {
-                            Ok(next) => next,
-                            Err(_) => {
-                                warn!("WsManager read timeout");
-                                should_reconnect = true;
-                                None
-                            }
-                        }
+                    let next = if let Some(cfg) = liveness {
+                        time::timeout(cfg.check_interval, reader.next()).await
                     } else {
-                        reader.next().await
+                        Ok(reader.next().await)
                     };
+                    let now_ms = base_instant.elapsed().as_millis() as u64;
 
-                    if !should_reconnect {
-                        match next {
-                            Some(Ok(data)) => match &data {
-                                protocol::Message::Text(_) => {
-                                    if let Err(err) = WsManager::parse_and_send_data(
-                                        Ok(data),
-                                        &subscriptions_copy,
-                                    )
-                                    .await
+                    match next {
+                        Ok(Some(Ok(data))) => {
+                            last_rx.store(now_ms, Ordering::Relaxed);
+                            if awaiting_pong.load(Ordering::Relaxed) {
+                                awaiting_pong.store(false, Ordering::Relaxed);
+                            }
+                            match data {
+                                protocol::Message::Text(text) => {
+                                    match WsManager::parse_and_send_data(text, &subscriptions_copy)
+                                        .await
                                     {
-                                        error!(
-                                            "Error processing data received by WsManager reader: {err}"
-                                        );
-                                        should_reconnect = true;
+                                        Ok(message) => {
+                                            if let Some(Message::Pong) = message {
+                                                last_pong.store(now_ms, Ordering::Relaxed);
+                                            }
+                                        }
+                                        Err(err) => {
+                                            error!(
+                                                "Error processing data received by WsManager reader: {err}"
+                                            );
+                                            should_reconnect = true;
+                                        }
                                     }
                                 }
                                 protocol::Message::Close(_) => {
                                     warn!("WsManager received close frame");
                                     should_reconnect = true;
                                 }
-                                protocol::Message::Binary(_)
-                                | protocol::Message::Ping(_)
-                                | protocol::Message::Pong(_) => {}
+                                protocol::Message::Pong(_) => {
+                                    last_pong.store(now_ms, Ordering::Relaxed);
+                                }
+                                protocol::Message::Binary(_) | protocol::Message::Ping(_) => {}
                                 _ => {}
-                            },
-                            Some(Err(err)) => {
-                                error!("WsManager reader error: {err}");
-                                should_reconnect = true;
-                            }
-                            None => {
-                                warn!("WsManager disconnected");
-                                should_reconnect = true;
                             }
                         }
+                        Ok(Some(Err(err))) => {
+                            error!("WsManager reader error: {err}");
+                            let error = Error::GenericReader(err.to_string());
+                            if let Err(err) = WsManager::send_to_all_subscriptions(
+                                &subscriptions_copy,
+                                Message::HyperliquidError(error.to_string()),
+                            )
+                            .await
+                            {
+                                warn!("Error sending reader notification err={err}");
+                            }
+                            should_reconnect = true;
+                        }
+                        Ok(None) => {
+                            warn!("WsManager disconnected");
+                            should_reconnect = true;
+                        }
+                        Err(_) => {
+                            if let Some(cfg) = liveness {
+                                let last_ping_ms = last_ping.load(Ordering::Relaxed);
+                                let last_rx_ms = last_rx.load(Ordering::Relaxed);
+                                let last_pong_ms = last_pong.load(Ordering::Relaxed);
+                                if awaiting_pong.load(Ordering::Relaxed)
+                                    && now_ms.saturating_sub(last_ping_ms)
+                                        >= cfg.pong_grace.as_millis() as u64
+                                    && last_rx_ms <= last_ping_ms
+                                    && last_pong_ms <= last_ping_ms
+                                {
+                                    warn!("WsManager pong timeout");
+                                    should_reconnect = true;
+                                }
+                            }
+                        }
+                    }
+
+                    if !should_reconnect && force_reconnect.swap(false, Ordering::Relaxed) {
+                        should_reconnect = true;
                     }
                     if should_reconnect {
                         if let Err(err) = WsManager::send_to_all_subscriptions(
@@ -234,21 +282,38 @@ impl WsManager {
             spawn(reader_fut);
         }
 
-        {
+        if let Some(liveness) = liveness {
             let stop_flag = Arc::clone(&stop_flag);
             let writer = Arc::clone(&writer);
+            let last_rx = Arc::clone(&last_rx);
+            let last_ping = Arc::clone(&last_ping);
+            let awaiting_pong = Arc::clone(&awaiting_pong);
+            let force_reconnect = Arc::clone(&force_reconnect);
             let ping_fut = async move {
                 while !stop_flag.load(Ordering::Relaxed) {
-                    match serde_json::to_string(&Ping { method: "ping" }) {
-                        Ok(payload) => {
-                            let mut writer = writer.lock().await;
-                            if let Err(err) = writer.send(protocol::Message::Text(payload)).await {
-                                error!("Error pinging server: {err}")
+                    let now_ms = base_instant.elapsed().as_millis() as u64;
+                    let last_rx_ms = last_rx.load(Ordering::Relaxed);
+                    if !awaiting_pong.load(Ordering::Relaxed)
+                        && now_ms.saturating_sub(last_rx_ms)
+                            >= liveness.ping_after.as_millis() as u64
+                    {
+                        match serde_json::to_string(&Ping { method: "ping" }) {
+                            Ok(payload) => {
+                                let mut writer = writer.lock().await;
+                                if let Err(err) =
+                                    writer.send(protocol::Message::Text(payload)).await
+                                {
+                                    error!("Error pinging server: {err}");
+                                    force_reconnect.store(true, Ordering::Relaxed);
+                                } else {
+                                    awaiting_pong.store(true, Ordering::Relaxed);
+                                    last_ping.store(now_ms, Ordering::Relaxed);
+                                }
                             }
+                            Err(err) => error!("Error serializing ping message: {err}"),
                         }
-                        Err(err) => error!("Error serializing ping message: {err}"),
                     }
-                    time::sleep(Duration::from_secs(Self::SEND_PING_INTERVAL)).await;
+                    time::sleep(liveness.check_interval).await;
                 }
                 warn!("ws ping task stopped");
             };
@@ -271,10 +336,18 @@ impl WsManager {
             .0)
     }
 
-    fn read_timeout_for_base_url(base_url: BaseUrl) -> Option<Duration> {
+    fn liveness_config(base_url: BaseUrl) -> Option<LivenessConfig> {
         match base_url {
-            BaseUrl::Testnet => Some(Duration::from_secs(Self::TESTNET_READ_TIMEOUT_SECS)),
-            BaseUrl::Mainnet => Some(Duration::from_secs(Self::MAINNET_READ_TIMEOUT_SECS)),
+            BaseUrl::Testnet => Some(LivenessConfig {
+                ping_after: Duration::from_secs(Self::TESTNET_PING_AFTER_SECS),
+                pong_grace: Duration::from_secs(Self::TESTNET_PONG_GRACE_SECS),
+                check_interval: Duration::from_secs(Self::LIVENESS_CHECK_INTERVAL_SECS),
+            }),
+            BaseUrl::Mainnet => Some(LivenessConfig {
+                ping_after: Duration::from_secs(Self::MAINNET_PING_AFTER_SECS),
+                pong_grace: Duration::from_secs(Self::MAINNET_PONG_GRACE_SECS),
+                check_interval: Duration::from_secs(Self::LIVENESS_CHECK_INTERVAL_SECS),
+            }),
             BaseUrl::Localhost => None,
         }
     }
@@ -353,55 +426,33 @@ impl WsManager {
     }
 
     async fn parse_and_send_data(
-        data: std::result::Result<protocol::Message, tungstenite::Error>,
+        data: String,
         subscriptions: &Arc<Mutex<HashMap<String, Vec<SubscriptionData>>>>,
-    ) -> Result<()> {
-        match data {
-            Ok(data) => match data.into_text() {
-                Ok(data) => {
-                    if !data.starts_with('{') {
-                        return Ok(());
-                    }
-                    let message = serde_json::from_str::<Message>(&data)
-                        .map_err(|e| Error::JsonParse(e.to_string()))?;
-                    let identifier = WsManager::get_identifier(&message)?;
-                    if identifier.is_empty() {
-                        return Ok(());
-                    }
+    ) -> Result<Option<Message>> {
+        if !data.starts_with('{') {
+            return Ok(None);
+        }
+        let message =
+            serde_json::from_str::<Message>(&data).map_err(|e| Error::JsonParse(e.to_string()))?;
+        let identifier = WsManager::get_identifier(&message)?;
+        if identifier.is_empty() {
+            return Ok(Some(message));
+        }
 
-                    let mut subscriptions = subscriptions.lock().await;
-                    let mut res = Ok(());
-                    if let Some(subscription_datas) = subscriptions.get_mut(&identifier) {
-                        for subscription_data in subscription_datas {
-                            if let Err(e) = subscription_data
-                                .sending_channel
-                                .send(message.clone())
-                                .map_err(|e| Error::WsSend(e.to_string()))
-                            {
-                                res = Err(e);
-                            }
-                        }
-                    }
-                    res
+        let mut subscriptions = subscriptions.lock().await;
+        let mut res = Ok(());
+        if let Some(subscription_datas) = subscriptions.get_mut(&identifier) {
+            for subscription_data in subscription_datas {
+                if let Err(e) = subscription_data
+                    .sending_channel
+                    .send(message.clone())
+                    .map_err(|e| Error::WsSend(e.to_string()))
+                {
+                    res = Err(e);
                 }
-                Err(err) => {
-                    let error = Error::ReaderTextConversion(err.to_string());
-                    Ok(WsManager::send_to_all_subscriptions(
-                        subscriptions,
-                        Message::HyperliquidError(error.to_string()),
-                    )
-                    .await?)
-                }
-            },
-            Err(err) => {
-                let error = Error::GenericReader(err.to_string());
-                Ok(WsManager::send_to_all_subscriptions(
-                    subscriptions,
-                    Message::HyperliquidError(error.to_string()),
-                )
-                .await?)
             }
         }
+        res.map(|_| Some(message))
     }
 
     async fn send_to_all_subscriptions(

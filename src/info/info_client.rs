@@ -179,6 +179,13 @@ impl InfoClient {
             .await
     }
 
+    pub async fn clear_ws_subscriptions(&mut self) -> Result<()> {
+        if let Some(ws_manager) = self.ws_manager.as_mut() {
+            ws_manager.unsubscribe_all().await?;
+        }
+        Ok(())
+    }
+
     async fn send_info_request<T: for<'a> Deserialize<'a>>(
         &self,
         info_request: InfoRequest,

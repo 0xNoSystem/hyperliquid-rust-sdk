@@ -593,6 +593,44 @@ impl WsManager {
         }
         Ok(())
     }
+
+    pub(crate) async fn unsubscribe_all(&mut self) -> Result<()> {
+        let mut identifiers: Vec<String> = Vec::new();
+        {
+            let mut subscriptions = self.subscriptions.lock().await;
+            if subscriptions.is_empty() {
+                self.subscription_identifiers.clear();
+                return Ok(());
+            }
+
+            for (identifier, v) in subscriptions.iter() {
+                if identifier.eq("userEvents") || identifier.eq("orderUpdates") {
+                    for subscription_data in v {
+                        identifiers.push(subscription_data.id.clone());
+                    }
+                } else {
+                    identifiers.push(identifier.clone());
+                }
+            }
+
+            subscriptions.clear();
+        }
+
+        self.subscription_identifiers.clear();
+
+        if identifiers.is_empty() {
+            return Ok(());
+        }
+
+        let mut writer = self.writer.lock().await;
+        let mut res = Ok(());
+        for identifier in identifiers {
+            if let Err(err) = Self::unsubscribe(writer.borrow_mut(), identifier.as_str()).await {
+                res = Err(err);
+            }
+        }
+        res
+    }
 }
 
 impl Drop for WsManager {

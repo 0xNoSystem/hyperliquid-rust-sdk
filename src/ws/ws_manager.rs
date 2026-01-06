@@ -241,9 +241,10 @@ impl WsManager {
                                 Ok(ws) => {
                                     let (new_writer, new_reader) = ws.split();
                                     reader = new_reader;
+                                    let subscriptions_guard = subscriptions_copy.lock().await;
                                     let mut writer_guard = writer.lock().await;
                                     *writer_guard = new_writer;
-                                    for (identifier, v) in subscriptions_copy.lock().await.iter() {
+                                    for (identifier, v) in subscriptions_guard.iter() {
                                         // TODO should these special keys be removed and instead use the simpler direct identifier mapping?
                                         if identifier.eq("userEvents")
                                             || identifier.eq("orderUpdates")

@@ -188,7 +188,9 @@ impl InfoClient {
 
     pub async fn shutdown_ws(&mut self) -> Result<()> {
         self.clear_ws_subscriptions().await?;
-        self.ws_manager = None;
+        if let Some(ws) = self.ws_manager.take() {
+            drop(ws);
+        }
         Ok(())
     }
 

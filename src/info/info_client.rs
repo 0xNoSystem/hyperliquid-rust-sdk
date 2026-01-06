@@ -186,6 +186,12 @@ impl InfoClient {
         Ok(())
     }
 
+    pub async fn shutdown_ws(&mut self) -> Result<()> {
+        self.clear_ws_subscriptions().await?;
+        self.ws_manager = None;
+        Ok(())
+    }
+
     async fn send_info_request<T: for<'a> Deserialize<'a>>(
         &self,
         info_request: InfoRequest,

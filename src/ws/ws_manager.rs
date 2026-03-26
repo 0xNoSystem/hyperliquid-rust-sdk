@@ -177,7 +177,6 @@ impl WsManager {
                                 }
                                 protocol::Message::Close(_) => {
                                     warn!("WsManager received close frame");
-                                    should_reconnect = true;
                                 }
                                 protocol::Message::Pong(_) => {
                                     last_pong.store(now_ms, Ordering::Relaxed);

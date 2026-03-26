@@ -110,11 +110,11 @@ pub(crate) struct Ping {
 }
 
 impl WsManager {
-    const MAINNET_PING_AFTER_SECS: u64 = 60;
-    const MAINNET_PONG_GRACE_SECS: u64 = 30;
-    const TESTNET_PING_AFTER_SECS: u64 = 300;
-    const TESTNET_PONG_GRACE_SECS: u64 = 60;
-    const LIVENESS_CHECK_INTERVAL_SECS: u64 = 20;
+    const MAINNET_PING_AFTER_SECS: u64 = 20;
+    const MAINNET_PONG_GRACE_SECS: u64 = 22;
+    const TESTNET_PING_AFTER_SECS: u64 = 40;
+    const TESTNET_PONG_GRACE_SECS: u64 = 45;
+    const LIVENESS_CHECK_INTERVAL_SECS: u64 = 10;
 
     pub(crate) async fn new(url: String, reconnect: bool, base_url: BaseUrl) -> Result<WsManager> {
         let stop_flag = Arc::new(AtomicBool::new(false));
@@ -175,8 +175,8 @@ impl WsManager {
                                         }
                                     }
                                 }
-                                protocol::Message::Close(_) => {
-                                    warn!("WsManager received close frame");
+                                protocol::Message::Close(frame) => {
+                                    warn!("WsManager received close frame:\n{:?}", dbg!(frame));
                                     should_reconnect = true;
                                 }
                                 protocol::Message::Pong(_) => {

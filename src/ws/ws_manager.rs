@@ -114,7 +114,7 @@ impl WsManager {
     const MAINNET_PONG_GRACE_SECS: u64 = 30;
     const TESTNET_PING_AFTER_SECS: u64 = 300;
     const TESTNET_PONG_GRACE_SECS: u64 = 60;
-    const LIVENESS_CHECK_INTERVAL_SECS: u64 = 5;
+    const LIVENESS_CHECK_INTERVAL_SECS: u64 = 20;
 
     pub(crate) async fn new(url: String, reconnect: bool, base_url: BaseUrl) -> Result<WsManager> {
         let stop_flag = Arc::new(AtomicBool::new(false));

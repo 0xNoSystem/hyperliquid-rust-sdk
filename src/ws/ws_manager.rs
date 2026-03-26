@@ -175,7 +175,8 @@ impl WsManager {
                                         }
                                     }
                                 }
-                                protocol::Message::Close(_) => {
+                                protocol::Message::Close(frame) => {
+                                    dbg!(frame);
                                     warn!("WsManager received close frame");
                                 }
                                 protocol::Message::Pong(_) => {

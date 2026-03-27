@@ -71,6 +71,8 @@ pub enum Error {
     BacktestError(String),
     #[error("Failed to execute trade: {0}")]
     ExecutionFailure(String),
+    #[error("Authentication error: {0}")]
+    AuthError(String),
     #[error("ERROR MESSAGE: {0}")]
     Custom(String),
 }

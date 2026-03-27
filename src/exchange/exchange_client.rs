@@ -167,7 +167,25 @@ impl ExchangeClient {
             .await
             .map_err(|e| Error::JsonParse(e.to_string()))?;
         debug!("Response: {output}");
-        serde_json::from_str(output).map_err(|e| Error::JsonParse(e.to_string()))
+        let status: ExchangeResponseStatus =
+            serde_json::from_str(output).map_err(|e| Error::JsonParse(e.to_string()))?;
+
+        // Surface auth/key errors as Error::AuthError so callers can handle them
+        if let ExchangeResponseStatus::Err(ref msg) = status {
+            let lower = msg.to_lowercase();
+            if lower.contains("not authorized")
+                || lower.contains("unauthorized")
+                || lower.contains("agent")
+                    && (lower.contains("expired")
+                        || lower.contains("revoked")
+                        || lower.contains("not approved")
+                        || lower.contains("not found"))
+            {
+                return Err(Error::AuthError(msg.clone()));
+            }
+        }
+
+        Ok(status)
     }
 
     pub async fn enable_big_blocks(

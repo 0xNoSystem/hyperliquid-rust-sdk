@@ -104,22 +104,31 @@ impl ExchangeClient {
         client: Option<Client>,
         wallet: PrivateKeySigner,
         base_url: Option<BaseUrl>,
-        meta: Option<Meta>,
+        _meta: Option<Meta>,
         vault_address: Option<Address>,
     ) -> Result<ExchangeClient> {
         let client = client.unwrap_or_default();
         let base_url = base_url.unwrap_or(BaseUrl::Mainnet);
 
         let info = InfoClient::new(None, Some(base_url)).await?;
-        let meta = if let Some(meta) = meta {
-            meta
-        } else {
-            info.meta().await?
-        };
+
+        let all_metas: Vec<Meta> = info.all_perp_metas_raw().await?;
+
+        let meta = all_metas
+            .first()
+            .cloned()
+            .unwrap_or(Meta { universe: vec![] });
 
         let mut coin_to_asset = HashMap::new();
-        for (asset_ind, asset) in meta.universe.iter().enumerate() {
-            coin_to_asset.insert(asset.name.clone(), asset_ind as u32);
+        for (dex_idx, dex_meta) in all_metas.iter().enumerate() {
+            let base = if dex_idx == 0 {
+                0
+            } else {
+                100_000 + dex_idx as u32 * 10_000
+            };
+            for (asset_idx, asset) in dex_meta.universe.iter().enumerate() {
+                coin_to_asset.insert(asset.name.clone(), base + asset_idx as u32);
+            }
         }
 
         coin_to_asset = info

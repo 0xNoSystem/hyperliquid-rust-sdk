@@ -91,6 +91,14 @@ pub struct AssetMeta {
     pub max_leverage: usize,
     #[serde(default)]
     pub only_isolated: Option<bool>,
+    #[serde(default)]
+    pub margin_table_id: Option<u32>,
+    #[serde(default)]
+    pub margin_mode: Option<String>,
+    #[serde(default)]
+    pub growth_mode: Option<String>,
+    #[serde(default)]
+    pub last_growth_mode_change_time: Option<String>,
 }
 
 #[derive(Deserialize, Debug, Clone)]

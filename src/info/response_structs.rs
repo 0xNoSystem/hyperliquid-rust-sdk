@@ -8,6 +8,18 @@ use crate::{
     UserTokenBalance,
 };
 
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PerpDexInfo {
+    pub name: String,
+    pub full_name: Option<String>,
+    pub deployer: Option<Address>,
+    pub index: Option<u32>,
+}
+
+/// Entry in the perpDexs response — first element is null (the primary dex).
+pub type PerpDex = Option<PerpDexInfo>;
+
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct UserStateResponse {

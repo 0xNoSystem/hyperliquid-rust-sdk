@@ -8,10 +8,10 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::{
     info::{
         ActiveAssetDataResponse, CandlesSnapshotResponse, FrontendOpenOrdersResponse,
-        FundingHistoryResponse, L2SnapshotResponse, OpenOrdersResponse, OrderInfo,
+        FundingHistoryResponse, L2SnapshotResponse, OpenOrdersResponse, OrderInfo, PerpDex,
         RecentTradesResponse, UserFillsResponse, UserStateResponse,
     },
-    meta::{AssetContext, Meta, SpotMeta, SpotMetaAndAssetCtxs},
+    meta::{AssetContext, AssetMeta, Meta, SpotMeta, SpotMetaAndAssetCtxs},
     prelude::*,
     req::HttpClient,
     ws::{Subscription, WsManager},
@@ -57,8 +57,18 @@ pub enum InfoRequest {
         user: Address,
         oid: u64,
     },
-    Meta,
-    MetaAndAssetCtxs,
+    #[serde(rename_all = "camelCase")]
+    Meta {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        dex: Option<String>,
+    },
+    PerpDexs,
+    #[serde(rename_all = "camelCase")]
+    MetaAndAssetCtxs {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        dex: Option<String>,
+    },
+    AllPerpMetas,
     SpotMeta,
     SpotMetaAndAssetCtxs,
     AllMids,
@@ -194,7 +204,7 @@ impl InfoClient {
         Ok(())
     }
 
-    async fn send_info_request<T: for<'a> Deserialize<'a>>(
+    pub async fn send_info_request<T: for<'a> Deserialize<'a>>(
         &self,
         info_request: InfoRequest,
     ) -> Result<T> {
@@ -239,13 +249,41 @@ impl InfoClient {
     }
 
     pub async fn meta(&self) -> Result<Meta> {
-        let input = InfoRequest::Meta;
+        let input = InfoRequest::Meta { dex: None };
+        self.send_info_request(input).await
+    }
+
+    pub async fn meta_for_dex(&self, dex: String) -> Result<Meta> {
+        let input = InfoRequest::Meta { dex: Some(dex) };
         self.send_info_request(input).await
     }
 
     pub async fn meta_and_asset_contexts(&self) -> Result<(Meta, Vec<AssetContext>)> {
-        let input = InfoRequest::MetaAndAssetCtxs;
+        let input = InfoRequest::MetaAndAssetCtxs { dex: None };
         self.send_info_request(input).await
+    }
+
+    pub async fn meta_and_asset_contexts_for_dex(
+        &self,
+        dex: String,
+    ) -> Result<(Meta, Vec<AssetContext>)> {
+        let input = InfoRequest::MetaAndAssetCtxs { dex: Some(dex) };
+        self.send_info_request(input).await
+    }
+
+    pub async fn perp_dexs(&self) -> Result<Vec<PerpDex>> {
+        let input = InfoRequest::PerpDexs;
+        self.send_info_request(input).await
+    }
+
+    pub async fn all_perp_metas_raw(&self) -> Result<Vec<Meta>> {
+        let input = InfoRequest::AllPerpMetas;
+        self.send_info_request(input).await
+    }
+
+    pub async fn all_perp_metas(&self) -> Result<Vec<AssetMeta>> {
+        let metas = self.all_perp_metas_raw().await?;
+        Ok(metas.into_iter().flat_map(|m| m.universe).collect())
     }
 
     pub async fn spot_meta(&self) -> Result<SpotMeta> {

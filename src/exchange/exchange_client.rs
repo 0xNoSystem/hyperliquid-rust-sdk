@@ -399,7 +399,7 @@ impl ExchangeClient {
             _ => return Err(Error::GenericRequest("Invalid base URL".to_string())),
         };
         let info_client = InfoClient::new(None, Some(base_url)).await?;
-        let user_state = info_client.user_state(wallet.address()).await?;
+        let user_state = info_client.user_state(wallet.address(), None).await?;
 
         let position = user_state
             .asset_positions

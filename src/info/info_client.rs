@@ -35,6 +35,8 @@ pub enum InfoRequest {
     #[serde(rename = "clearinghouseState")]
     UserState {
         user: Address,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        dex: Option<String>,
     },
     #[serde(rename = "batchClearinghouseStates")]
     UserStates {
@@ -52,6 +54,8 @@ pub enum InfoRequest {
     },
     FrontendOpenOrders {
         user: Address,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        dex: Option<String>,
     },
     OrderStatus {
         user: Address,
@@ -223,13 +227,18 @@ impl InfoClient {
     pub async fn frontend_open_orders(
         &self,
         address: Address,
+        dex: Option<String>,
     ) -> Result<Vec<FrontendOpenOrdersResponse>> {
-        let input = InfoRequest::FrontendOpenOrders { user: address };
+        let input = InfoRequest::FrontendOpenOrders { user: address, dex };
         self.send_info_request(input).await
     }
 
-    pub async fn user_state(&self, address: Address) -> Result<UserStateResponse> {
-        let input = InfoRequest::UserState { user: address };
+    pub async fn user_state(
+        &self,
+        address: Address,
+        dex: Option<String>,
+    ) -> Result<UserStateResponse> {
+        let input = InfoRequest::UserState { user: address, dex };
         self.send_info_request(input).await
     }
 

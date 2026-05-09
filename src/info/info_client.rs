@@ -9,7 +9,7 @@ use crate::{
     info::{
         ActiveAssetDataResponse, CandlesSnapshotResponse, FrontendOpenOrdersResponse,
         FundingHistoryResponse, L2SnapshotResponse, OpenOrdersResponse, OrderInfo, PerpDex,
-        RecentTradesResponse, UserFillsResponse, UserStateResponse,
+        RecentTradesResponse, UserAbstraction, UserFillsResponse, UserStateResponse,
     },
     meta::{AssetContext, AssetMeta, Meta, SpotMeta, SpotMetaAndAssetCtxs},
     prelude::*,
@@ -50,6 +50,10 @@ pub enum InfoRequest {
         user: Address,
     },
     OpenOrders {
+        user: Address,
+    },
+
+    UserAbstraction {
         user: Address,
     },
     FrontendOpenOrders {
@@ -396,6 +400,11 @@ impl InfoClient {
         coin: String,
     ) -> Result<ActiveAssetDataResponse> {
         let input = InfoRequest::ActiveAssetData { user, coin };
+        self.send_info_request(input).await
+    }
+
+    pub async fn get_user_abstraction(&self, address: Address) -> Result<UserAbstraction> {
+        let input = InfoRequest::UserAbstraction { user: address };
         self.send_info_request(input).await
     }
 }

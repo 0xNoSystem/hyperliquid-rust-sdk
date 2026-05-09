@@ -49,7 +49,7 @@ async fn frontend_open_orders_example(info_client: &InfoClient) {
 
     info!(
         "Open order data for {user}: {:?}",
-        info_client.frontend_open_orders(user).await.unwrap()
+        info_client.frontend_open_orders(user, None).await.unwrap()
     );
 }
 
@@ -58,7 +58,7 @@ async fn user_state_example(info_client: &InfoClient) {
 
     println!(
         "User state data for {user}: {:?}",
-        info_client.user_state(user).await.unwrap()
+        info_client.user_state(user, None).await.unwrap()
     );
 }
 

@@ -3,6 +3,16 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+pub enum UserAbstraction {
+    UnifiedAccount,
+    PortfolioMargin,
+    Disabled,
+    Default,
+    DexAbstraction,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Leverage {
     #[serde(rename = "type")]
     pub type_string: String,

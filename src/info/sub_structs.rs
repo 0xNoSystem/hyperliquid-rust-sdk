@@ -1,7 +1,7 @@
 use alloy::primitives::Address;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum UserAbstraction {
     UnifiedAccount,
@@ -9,6 +9,13 @@ pub enum UserAbstraction {
     Disabled,
     Default,
     DexAbstraction,
+}
+
+impl UserAbstraction {
+    #[inline]
+    pub fn is_unified(&self) -> bool {
+        *self == UserAbstraction::UnifiedAccount || *self == UserAbstraction::PortfolioMargin
+    }
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]

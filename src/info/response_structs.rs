@@ -44,6 +44,9 @@ pub struct UserFeesResponse {
     pub user_cross_rate: String,
 }
 
+#[derive(Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MaxBuilderFeeResponse(pub u64);
+
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct OpenOrdersResponse {

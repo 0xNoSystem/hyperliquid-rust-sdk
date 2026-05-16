@@ -182,6 +182,9 @@ impl ExchangeClient {
         // Surface auth/key errors as Error::AuthError so callers can handle them
         if let ExchangeResponseStatus::Err(ref msg) = status {
             let lower = msg.to_lowercase();
+            if lower.contains("builder fee has not been approved") {
+                return Err(Error::UnapprovedBuilder(msg.clone()));
+            }
             if lower.contains("not authorized")
                 || lower.contains("unauthorized")
                 || lower.contains("agent")
@@ -364,7 +367,7 @@ impl ExchangeClient {
     pub async fn market_open_with_builder(
         &self,
         params: MarketOrderParams<'_>,
-        builder: BuilderInfo,
+        builder: &BuilderInfo,
     ) -> Result<ExchangeResponseStatus> {
         let slippage = params.slippage.unwrap_or(0.05); // Default 5% slippage
         let (px, sz_decimals) = self
@@ -501,7 +504,7 @@ impl ExchangeClient {
         &self,
         order: ClientOrderRequest,
         wallet: Option<&PrivateKeySigner>,
-        builder: BuilderInfo,
+        builder: &BuilderInfo,
     ) -> Result<ExchangeResponseStatus> {
         self.bulk_order_with_builder(vec![order], wallet, builder)
             .await
@@ -538,12 +541,10 @@ impl ExchangeClient {
         &self,
         orders: Vec<ClientOrderRequest>,
         wallet: Option<&PrivateKeySigner>,
-        mut builder: BuilderInfo,
+        builder: &BuilderInfo,
     ) -> Result<ExchangeResponseStatus> {
         let wallet = wallet.unwrap_or(&self.wallet);
         let timestamp = next_nonce();
-
-        builder.builder = builder.builder.to_lowercase();
 
         let mut transformed_orders = Vec::new();
 
@@ -554,7 +555,10 @@ impl ExchangeClient {
         let action = Actions::Order(BulkOrder {
             orders: transformed_orders,
             grouping: "na".to_string(),
-            builder: Some(builder),
+            builder: Some(BuilderInfo {
+                builder: builder.builder.to_lowercase(),
+                fee: builder.fee,
+            }),
         });
         let connection_id = action.hash(timestamp, self.vault_address)?;
         let action = serde_json::to_value(&action).map_err(|e| Error::JsonParse(e.to_string()))?;

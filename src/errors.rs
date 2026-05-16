@@ -73,6 +73,8 @@ pub enum Error {
     ExecutionFailure(String),
     #[error("Authentication error: {0}")]
     AuthError(String),
+    #[error("Builder fee has not been approved: {0}")]
+    UnapprovedBuilder(String),
     #[error("ERROR MESSAGE: {0}")]
     Custom(String),
 }

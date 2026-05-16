@@ -39,7 +39,7 @@ async fn main() {
         .order_with_builder(
             order,
             None,
-            BuilderInfo {
+            &BuilderInfo {
                 builder: builder.to_string(),
                 fee,
             },

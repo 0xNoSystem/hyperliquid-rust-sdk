@@ -8,8 +8,9 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::{
     info::{
         ActiveAssetDataResponse, CandlesSnapshotResponse, FrontendOpenOrdersResponse,
-        FundingHistoryResponse, L2SnapshotResponse, OpenOrdersResponse, OrderInfo, PerpDex,
-        RecentTradesResponse, UserAbstraction, UserFillsResponse, UserStateResponse,
+        FundingHistoryResponse, L2SnapshotResponse, MaxBuilderFeeResponse, OpenOrdersResponse,
+        OrderInfo, PerpDex, RecentTradesResponse, UserAbstraction, UserFillsResponse,
+        UserStateResponse,
     },
     meta::{AssetContext, AssetMeta, Meta, SpotMeta, SpotMetaAndAssetCtxs},
     prelude::*,
@@ -48,6 +49,10 @@ pub enum InfoRequest {
     },
     UserFees {
         user: Address,
+    },
+    MaxBuilderFee {
+        user: Address,
+        builder: Address,
     },
     OpenOrders {
         user: Address,
@@ -261,6 +266,15 @@ impl InfoClient {
         self.send_info_request(input).await
     }
 
+    pub async fn max_builder_fee(
+        &self,
+        user: Address,
+        builder: Address,
+    ) -> Result<MaxBuilderFeeResponse> {
+        let input = InfoRequest::MaxBuilderFee { user, builder };
+        self.send_info_request(input).await
+    }
+
     pub async fn meta(&self) -> Result<Meta> {
         let input = InfoRequest::Meta { dex: None };
         self.send_info_request(input).await
@@ -406,5 +420,36 @@ impl InfoClient {
     pub async fn get_user_abstraction(&self, address: Address) -> Result<UserAbstraction> {
         let input = InfoRequest::UserAbstraction { user: address };
         self.send_info_request(input).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloy::primitives::address;
+
+    #[test]
+    fn max_builder_fee_request_serializes_expected_shape() {
+        let request = InfoRequest::MaxBuilderFee {
+            user: address!("0x0000000000000000000000000000000000000001"),
+            builder: address!("0x0000000000000000000000000000000000000002"),
+        };
+
+        let value = serde_json::to_value(request).expect("request should serialize");
+
+        assert_eq!(value["type"], "maxBuilderFee");
+        assert_eq!(value["user"], "0x0000000000000000000000000000000000000001");
+        assert_eq!(
+            value["builder"],
+            "0x0000000000000000000000000000000000000002"
+        );
+    }
+
+    #[test]
+    fn max_builder_fee_response_deserializes_raw_integer() {
+        let response: MaxBuilderFeeResponse =
+            serde_json::from_str("50").expect("response should deserialize");
+
+        assert_eq!(response, MaxBuilderFeeResponse(50));
     }
 }

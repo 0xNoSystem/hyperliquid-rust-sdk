@@ -37,7 +37,7 @@ async fn main() {
     let response = exchange_client
         .market_open_with_builder(
             market_open_params,
-            BuilderInfo {
+            &BuilderInfo {
                 builder: builder.to_string(),
                 fee,
             },
